@@ -1,0 +1,106 @@
+# version format
+version: 1.0.1.{build}
+
+# branches to build
+branches:
+  # whitelist
+  only:
+    - master
+  # blacklist
+  except:
+    - gh-pages
+
+# Do not build on tags (GitHub, Bitbucket, GitLab, Gitea)
+skip_tags: true
+
+# Skipping commits affecting specific files (GitHub only). More details here: /docs/appveyor-yml
+skip_commits:
+  files:
+    - docs/*
+    - '**/*.html'
+    - README.md
+    - .github/*
+  message: /updated? readme.*s/
+
+# Maximum number of concurrent jobs for the project
+max_jobs: 1
+
+
+#---------------------------------#
+#    environment configuration    #
+#---------------------------------#
+
+# Build worker image (VM template)
+image: Visual Studio 2019
+
+# scripts that are called at very beginning, before repo cloning
+init:
+  - git config --global core.autocrlf input
+
+# clone directory
+clone_folder: C:\Projects\Find.Uninstaller
+
+# fetch repository as zip archive
+shallow_clone: false                 # default is "false"
+
+# set clone depth
+#clone_depth: 5                      # clone entire repository history if not defined
+
+# this is how to allow failing jobs in the matrix
+matrix:
+  fast_finish: true     # set this flag to immediately finish build once one of the jobs fails.
+  allow_failures:
+    - platform: x64
+      configuration: Release
+
+# environment variables
+environment:
+  NUGET_API_KEY:
+    secure: vwJBhbWY9NwSAeYw7iU4i3RjqfVkegrXFyFAJB/uFIYtp5pz0Vw5Htiyfa83v+dg
+  GITHUB_TOKEN:
+    secure: CfEmErpg+GG/Zz860w3f++jGVYHmqQTqglE2nyfg5AMeTstEx5rIJAbA7V+SBmI6
+  GITHUB_EMAIL:
+    secure: EgLVSzhfEctx0yCxhZCE2v4Or141bwRMrzLs+pyT9x8=
+  GITHUB_NAME:
+    secure: nd3L/89JuGm9kSnix9hH193TjvElTUlcK9PSHvSkxCc=
+# APPVEYOR_RDP_PASSWORD:
+#   secure: Ps2KNyw17/1mtAm9/5/miw==
+# scripts that run after cloning repository
+install:
+#  - ps: .\build.ps1   #~> builds the module on the CI server
+#  - ps: .\install.ps1   #~> installs the module locally on the CI server
+#  - ps: Import-Module -Name Get.URLStatusCode  # Imports the module for testing
+  - ps: |
+      Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.208 -Force
+      Install-Module -Name PowerShellGet -Force
+      "Git version: $(git.exe --version)"
+      "PSVersion:   $($PSVersionTable.PSVersion), build: $($PSVersionTable.BuildVersion), clr version: $($PSVersionTable.ClrVersion)"
+      "Host name:   $($Host.Name)"
+build_script:
+  - ps: ./build.ps1
+  - ps: ./install.ps1
+
+test_script:
+  - ps: ./test.ps1
+
+# on successful build
+on_success:
+#  - git init
+  - git add .
+  - git config --global credential.helper store
+  - ps: Add-Content -Path "$HOME\.git-credentials" -Value "https://$($Env:GITHUB_TOKEN):x-oauth-basic@github.com`n" -NoNewline
+  - git config --global user.email $Env:GITHUB_EMAIL
+  - git config --global user.name $Env:GITHUB_NAME
+  - ps: git tag -a "v$($Env:APPVEYOR_BUILD_VERSION)" -m "Releasing version v$($Env:APPVEYOR_BUILD_VERSION)"
+  - git push origin -f --tags
+#  - git remote add origin https://github.com/repasscloud/Get.URLStatusCode.git
+  - git push -u origin master
+
+# on build failure
+on_failure:
+  - ps: Write-Host -ForegroundColor Red 'Build failed :-('
+
+# after build failure or success
+on_finish:
+  - ps: .\deploy.ps1
+# - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
