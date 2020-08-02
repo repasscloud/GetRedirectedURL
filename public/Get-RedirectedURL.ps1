@@ -3,7 +3,7 @@ RePass Cloud Get-RedirectedURL.ps1
 Copyright 2020 RePass Cloud Pty Ltd
 This product includes software developed at
 RePass Cloud (https://repasscloud.com/).
-Version: 2.0.1.4
+Version: 2.0.2.5
 Last Updated:
 #>
 
@@ -21,7 +21,7 @@ function Get-RedirectedUrl {
 
   do {
       try {
-          $response=Invoke-WebRequest -Method Head -WebSession $Session -Uri $request_url
+          $response=Invoke-WebRequest -Method Head -WebSession $Session -Uri $request_url -UseBasicParsing
           if ($null -ne $response.BaseResponse.ResponseUri) {
               # PowerShell 5
               $result=$response.BaseResponse.ResponseUri.AbsoluteUri
